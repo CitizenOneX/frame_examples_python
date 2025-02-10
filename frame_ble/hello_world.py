@@ -6,7 +6,8 @@ async def main():
     await frame.connect()
 
     if frame.is_connected():
-        await frame.send_lua('frame.display.text("Hello, Frame!", 1, 1);frame.display.show()')
+        # wait for a print() to ensure the Lua has executed, not just that the command was sent successfully
+        await frame.send_lua("frame.display.text('Hello, Frame!', 1, 1);frame.display.show();print(nil)", await_print=True)
         await frame.disconnect()
 
     else:
