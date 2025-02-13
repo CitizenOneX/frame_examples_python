@@ -1,2 +1,2 @@
-frame_ble
+frame-ble
 bleak
