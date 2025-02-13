@@ -1,3 +1,5 @@
 frame_ble
 frame_msg
 bleak
+numpy
+pillow
