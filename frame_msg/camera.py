@@ -64,7 +64,7 @@ async def main():
         capture_settings = TxCaptureSettings(0x0d, resolution=720)
         await frame.send_message(0x0d, capture_settings.pack())
 
-        # get the jpeg bytes as soon as it's ready
+        # get the jpeg bytes as soon as they're ready
         jpeg_bytes = await asyncio.wait_for(rx_photo.queue.get(), timeout=10.0)
 
         # display the image in the system viewer

@@ -1,14 +1,14 @@
 local data = require('data.min')
 local camera = require('camera.min')
-local sprite = require('sprite.min')
+local image_sprite_block = require('image_sprite_block.min')
 
 -- Phone to Frame flags
 CAPTURE_SETTINGS_MSG = 0x0d
-USER_SPRITE = 0x20
+IMAGE_SPRITE_BLOCK = 0x20
 
 -- register the message parser so it's automatically called when matching data comes in
 data.parsers[CAPTURE_SETTINGS_MSG] = camera.parse_capture_settings
-data.parsers[USER_SPRITE] = sprite.parse_sprite
+data.parsers[IMAGE_SPRITE_BLOCK] = image_sprite_block.parse_image_sprite_block
 
 function clear_display()
     frame.display.text(" ", 1, 1)
@@ -49,20 +49,32 @@ function app_loop()
 						data.app_data[CAPTURE_SETTINGS_MSG] = nil
 					end
 
-					if data.app_data[USER_SPRITE] ~= nil then
-						local spr = data.app_data[USER_SPRITE]
+					if (data.app_data[IMAGE_SPRITE_BLOCK] ~= nil) then
+						-- show the image sprite block
+						local isb = data.app_data[IMAGE_SPRITE_BLOCK]
 
-						-- set the palette in case it's different to the standard palette
-						sprite.set_palette(spr.num_colors, spr.palette_data)
+						-- it can be that we haven't got any sprites yet, so only proceed if we have a sprite
+						if isb.current_sprite_index > 0 then
+							-- either we have all the sprites, or we want to do progressive/incremental rendering
+							if isb.progressive_render or (isb.active_sprites == isb.total_sprites) then
 
-						-- show the sprite
-						frame.display.bitmap(1, 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
-						frame.display.show()
+								for index = 1, isb.active_sprites do
+										local spr = isb.sprites[index]
+										local y_offset = isb.sprite_line_height * (index - 1)
 
-						-- clear the object and run the garbage collector right away
-						data.app_data[USER_SPRITE] = nil
-						collectgarbage('collect')
+										-- set the palette the first time, all the sprites should have the same palette
+										if index == 1 then
+												image_sprite_block.set_palette(spr.num_colors, spr.palette_data)
+										end
+
+										frame.display.bitmap(1, y_offset + 1, spr.width, 2^spr.bpp, 0, spr.pixel_data)
+								end
+
+								frame.display.show()
+							end
+						end
 					end
+
 				end
 
 				if camera.is_auto_exp then

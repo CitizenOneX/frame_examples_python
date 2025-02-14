@@ -4,7 +4,7 @@ from PIL import Image
 import io
 
 from frame_ble import FrameBle
-from frame_msg import RxPhoto, TxCaptureSettings, TxSprite
+from frame_msg import RxPhoto, TxCaptureSettings, TxSprite, TxImageSpriteBlock
 
 async def main():
     """
@@ -24,7 +24,7 @@ async def main():
         print(f"Battery Level: {await frame.send_lua('print(frame.battery_level())', await_print=True)}")
 
         # send the std lua files to Frame that handle data accumulation and camera
-        for stdlua in ['data', 'camera', 'sprite']:
+        for stdlua in ['data', 'camera', 'image_sprite_block']:
             await frame.upload_file_from_string(files("frame_msg").joinpath(f"lua/{stdlua}.min.lua").read_text(), f"{stdlua}.min.lua")
 
         # Send the main lua application from this project to Frame that will run the app
@@ -64,17 +64,22 @@ async def main():
         capture_settings = TxCaptureSettings(0x0d, resolution=720)
         await frame.send_message(0x0d, capture_settings.pack())
 
-        # get the jpeg bytes as soon as it's ready
+        # get the jpeg bytes as soon as they're ready
         jpeg_bytes = await asyncio.wait_for(rx_photo.queue.get(), timeout=10.0)
 
         # stop the photo handler and clean up resources
         rx_photo.stop()
         frame._user_data_response_handler = None
 
-        # Quantize and send the image to Frame in chunks
-        # Note that the frameside app is expecting a message of type TxSprite on msgCode 0x20
-        sprite = TxSprite.from_image_bytes(0x20, jpeg_bytes, max_pixels=20000)
-        await frame.send_message(sprite.msg_code, sprite.pack())
+        # Quantize and send the image to Frame in chunks as an ImageSpriteBlock rendered progressively
+        # Note that the frameside app is expecting a message of type TxImageSpriteBlock on msgCode 0x20
+        sprite = TxSprite.from_image_bytes(0x20, jpeg_bytes, max_pixels=64000)
+        isb = TxImageSpriteBlock(0x20, sprite, 20)
+        # send the Image Sprite Block header
+        await frame.send_message(isb.msg_code, isb.pack())
+        # then send all the slices
+        for spr in isb.sprite_lines:
+            await frame.send_message(isb.msg_code, spr.pack())
 
         await asyncio.sleep(5.0)
 
