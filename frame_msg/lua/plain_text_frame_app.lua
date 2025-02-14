@@ -18,7 +18,6 @@ function print_text(text)
     end
 end
 
-
 -- Main app loop
 function app_loop()
 	frame.display.text('Frame App Started', 1, 1)
