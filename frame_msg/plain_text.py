@@ -22,7 +22,7 @@ async def main():
         # debug only: check our current battery level
         print(f"Battery Level: {await frame.send_lua('print(frame.battery_level())', await_print=True)}")
 
-        # send the std lua files to Frame that handle data accumulation and sprite parsing
+        # send the std lua files to Frame that handle data accumulation and text display
         for stdlua in ['data', 'plain_text']:
             await frame.upload_file_from_string(files("frame_msg").joinpath(f"lua/{stdlua}.min.lua").read_text(), f"{stdlua}.lua")
 
