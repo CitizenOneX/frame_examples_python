@@ -1,5 +1,5 @@
-local data = require('data')
-local plain_text = require('plain_text')
+local data = require('data.min')
+local plain_text = require('plain_text.min')
 
 -- Phone to Frame flags
 TEXT_FLAG = 0x0a

@@ -1,5 +1,4 @@
 import asyncio
-from pathlib import Path
 from importlib.resources import files
 
 from frame_ble import FrameBle
@@ -24,7 +23,7 @@ async def main():
 
         # send the std lua files to Frame that handle data accumulation and text display
         for stdlua in ['data', 'plain_text']:
-            await frame.upload_file_from_string(files("frame_msg").joinpath(f"lua/{stdlua}.min.lua").read_text(), f"{stdlua}.lua")
+            await frame.upload_file_from_string(files("frame_msg").joinpath(f"lua/{stdlua}.min.lua").read_text(), f"{stdlua}.min.lua")
 
         # Send the main lua application from this project to Frame that will run the app
         # to display the text when the messages arrive

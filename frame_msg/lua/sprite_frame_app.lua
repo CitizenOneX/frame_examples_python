@@ -1,5 +1,5 @@
-local data = require('data')
-local sprite = require('sprite')
+local data = require('data.min')
+local sprite = require('sprite.min')
 
 -- Phone to Frame flags
 USER_SPRITE = 0x20
