@@ -19,11 +19,6 @@ async def main():
     try:
         await frame.connect()
 
-        # attach the print response handler so we can see stdout from Frame Lua print() statements
-        # any await_print=True commands will echo the acknowledgement byte (e.g. "1"), so one can assign
-        # the handler after the frameside app is running to remove that noise from the log
-        frame._user_print_response_handler = print
-
         # Send a break signal to Frame in case it has a loop running from another app
         await frame.send_break_signal()
 
@@ -41,6 +36,11 @@ async def main():
         # to display the sprites when the messages arrive
         # We rename the file slightly when we copy it, although it isn't necessary
         await frame.upload_file("lua/sprite_frame_app.lua", "frame_app.lua")
+
+        # attach the print response handler so we can see stdout from Frame Lua print() statements
+        # any await_print=True commands will echo the acknowledgement byte (e.g. "1"), so one can assign
+        # the handler after the frameside app is running to remove that noise from the log
+        frame._user_print_response_handler = print
 
         # "require" the main lua file to run it
         # Note: we can't await_print here because the require() doesn't return - it has a main loop
