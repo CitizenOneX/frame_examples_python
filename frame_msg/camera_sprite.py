@@ -8,7 +8,7 @@ from frame_msg import RxPhoto, TxCaptureSettings, TxSprite, TxImageSpriteBlock
 
 async def main():
     """
-    Take a photo using the Frame camera and display it in the system viewer
+    Take a photo using the Frame camera and display it on the Frame display
     """
     frame = FrameBle()
     try:
