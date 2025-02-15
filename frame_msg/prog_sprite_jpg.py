@@ -59,13 +59,13 @@ async def main():
 
         # Quantize and send the image to Frame in chunks
         # Note that the frameside app is expecting a message of type TxSprite on msgCode 0x20
-        sprite = TxSprite.from_image_bytes(0x20, Path("images/koala.jpg").read_bytes(), max_pixels=80000)
-        isb = TxImageSpriteBlock(0x20, sprite, 20)
+        sprite = TxSprite.from_image_bytes(Path("images/koala.jpg").read_bytes(), max_pixels=64000)
+        isb = TxImageSpriteBlock(sprite, sprite_line_height=20)
         # send the Image Sprite Block header
-        await frame.send_message(isb.msg_code, isb.pack())
+        await frame.send_message(0x20, isb.pack())
         # then send all the slices
         for spr in isb.sprite_lines:
-            await frame.send_message(isb.msg_code, spr.pack())
+            await frame.send_message(0x20, spr.pack())
 
         await asyncio.sleep(5.0)
 

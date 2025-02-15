@@ -61,7 +61,7 @@ async def main():
         await asyncio.sleep(5.0)
 
         # Request the photo capture
-        capture_settings = TxCaptureSettings(0x0d, resolution=720)
+        capture_settings = TxCaptureSettings(resolution=720)
         await frame.send_message(0x0d, capture_settings.pack())
 
         # get the jpeg bytes as soon as they're ready

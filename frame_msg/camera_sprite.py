@@ -61,7 +61,7 @@ async def main():
         await asyncio.sleep(5.0)
 
         # Request the photo capture
-        capture_settings = TxCaptureSettings(0x0d, resolution=720)
+        capture_settings = TxCaptureSettings(resolution=720)
         await frame.send_message(0x0d, capture_settings.pack())
 
         # get the jpeg bytes as soon as they're ready
@@ -73,13 +73,13 @@ async def main():
 
         # Quantize and send the image to Frame in chunks as an ImageSpriteBlock rendered progressively
         # Note that the frameside app is expecting a message of type TxImageSpriteBlock on msgCode 0x20
-        sprite = TxSprite.from_image_bytes(0x20, jpeg_bytes, max_pixels=64000)
-        isb = TxImageSpriteBlock(0x20, sprite, 20)
+        sprite = TxSprite.from_image_bytes(jpeg_bytes, max_pixels=64000)
+        isb = TxImageSpriteBlock(sprite, sprite_line_height=20)
         # send the Image Sprite Block header
-        await frame.send_message(isb.msg_code, isb.pack())
+        await frame.send_message(0x20, isb.pack())
         # then send all the slices
         for spr in isb.sprite_lines:
-            await frame.send_message(isb.msg_code, spr.pack())
+            await frame.send_message(0x20, spr.pack())
 
         await asyncio.sleep(5.0)
 

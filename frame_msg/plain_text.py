@@ -51,9 +51,8 @@ async def main():
 
         # Send the text for display on Frame
         # Note that the frameside app is expecting a message of type TxPlainText on msgCode 0x0a
-        for display_string in ["red", "orange", "yellow", " "]:
-            text = TxPlainText(0x0a, display_string)
-            await frame.send_message(text.msg_code, text.pack())
+        for display_string in ["red", "orange", "yellow", "red\norange\nyellow", " "]:
+            await frame.send_message(0x0a, TxPlainText(display_string).pack())
             await asyncio.sleep(1.0)
 
         # stop the app loop
