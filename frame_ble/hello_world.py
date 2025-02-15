@@ -7,8 +7,10 @@ async def main():
     try:
         await frame.connect()
 
-        # wait for a print() to ensure the Lua has executed, not just that the command was sent successfully
-        await frame.send_lua("frame.display.text('Hello, Frame!', 1, 1);frame.display.show();print(nil)", await_print=True)
+        # Print "Hello, Frame!" on the Frame display
+        # wait for a printed string to come back from Frame to ensure the Lua has executed, not just that the command was sent successfully
+        await frame.send_lua("frame.display.text('Hello, Frame!', 1, 1);frame.display.show();print(0)", await_print=True)
+        print("'Hello, Frame!' sent")
 
         await frame.disconnect()
 

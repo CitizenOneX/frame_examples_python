@@ -7,7 +7,7 @@ async def main():
     try:
         await frame.connect()
 
-        # attach the python print function to handle incoming strings from Frame stdout
+        # Optionally attach the python print function to print incoming strings from Frame stdout
         frame._user_print_response_handler = print
 
         # await_print: wait for a print() to ensure the Lua has executed, not just that the command was sent successfully
