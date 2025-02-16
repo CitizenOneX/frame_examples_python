@@ -21,10 +21,13 @@ async def main():
     try:
         await frame.connect()
 
+        # Send a break signal to Frame in case it currently has an application loop running
+        await frame.send_break_signal()
+
         # Send a reset signal to Frame to restart the Lua VM, initialize memory to a known state
         await frame.send_reset_signal()
 
-        # Send a break signal to Frame in case it has a loop running from a saved main.lua
+        # Send a break signal to Frame in case it automatically starts a saved main.lua
         await frame.send_break_signal()
 
         # Let the user know we're starting
@@ -74,6 +77,9 @@ async def main():
 
         # stop the app loop
         await frame.send_break_signal()
+
+        # reinitialize the Lua VM to clear the memory state
+        await frame.send_reset_signal()
 
     except Exception as e:
         print(f"An error occurred: {e}")

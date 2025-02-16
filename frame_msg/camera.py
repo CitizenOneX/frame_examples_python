@@ -14,14 +14,20 @@ async def main():
     try:
         await frame.connect()
 
-        # Send a break signal to Frame in case it has a loop running from another app
+        # Send a break signal to Frame in case it currently has an application loop running
+        await frame.send_break_signal()
+
+        # Send a reset signal to Frame to restart the Lua VM, initialize memory to a known state
+        await frame.send_reset_signal()
+
+        # Send a break signal to Frame in case it automatically starts a saved main.lua
         await frame.send_break_signal()
 
         # Let the user know we're starting
         await frame.send_lua("frame.display.text('Loading...',1,1);frame.display.show();print(1)", await_print=True)
 
-        # debug only: check our current battery level
-        print(f"Battery Level: {await frame.send_lua('print(frame.battery_level())', await_print=True)}")
+        # debug only: check our current battery level and memory usage (which varies between 16kb and 31kb or so even after the VM init)
+        print(f"Battery Level/Memory used: {await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)}")
 
         # send the std lua files to Frame that handle data accumulation and camera
         for stdlua in ['data', 'camera']:

@@ -99,7 +99,8 @@ async def main():
         print(f"An error occurred: {e}")
     finally:
         # clean disconnection
-        await frame.disconnect()
+        if frame.is_connected():
+            await frame.disconnect()
 
 if __name__ == "__main__":
     asyncio.run(main())
