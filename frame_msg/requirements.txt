@@ -3,3 +3,4 @@ frame-msg
 bleak
 numpy
 pillow
+lz4
