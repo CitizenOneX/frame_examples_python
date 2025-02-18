@@ -54,7 +54,7 @@ async def main():
 
         # give Frame a moment to start the frameside app,
         # based on how much work the app does before it's ready to process incoming data
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
 
         # Now that the Frameside app has started there is no need to send snippets of Lua
         # code directly (in fact, we would need to send a break_signal if we wanted to because
@@ -67,6 +67,9 @@ async def main():
         await frame.send_message(0x20, sprite.pack())
 
         await asyncio.sleep(5.0)
+
+        # unhook the print handler
+        frame._user_print_response_handler = None
 
         # stop the app loop
         await frame.send_break_signal()
