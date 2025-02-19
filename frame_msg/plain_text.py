@@ -18,8 +18,8 @@ async def main():
         # Let the user know we're starting
         await frame.send_lua("frame.display.text('Loading...',1,1);frame.display.show();print(1)", await_print=True)
 
-        # debug only: check our current battery level
-        print(f"Battery Level: {await frame.send_lua('print(frame.battery_level())', await_print=True)}")
+        # debug only: check our current battery level and memory usage (which varies between 16kb and 31kb or so even after the VM init)
+        print(f"Battery Level/Memory used: {await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)}")
 
         # send the std lua files to Frame that handle data accumulation and text display
         for stdlua in ['data', 'plain_text']:
