@@ -37,10 +37,7 @@ function app_loop()
 				if items_ready > 0 then
 
 					if (data.app_data[CAPTURE_SETTINGS_MSG] ~= nil) then
-						-- visual indicator of capture and send
-						--show_flash()
 						rc, err = pcall(camera.capture_and_send, data.app_data[CAPTURE_SETTINGS_MSG])
-						--clear_display()
 
 						if rc == false then
 							print(err)

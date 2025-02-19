@@ -36,7 +36,7 @@ async def main():
         # Send the main lua application from this project to Frame that will run the app
         # to display the text when the messages arrive
         # We rename the file slightly when we copy it, although it isn't necessary
-        await frame.upload_file("lua/camera_sprite_frame_app.lua", "frame_app.lua")
+        await frame.upload_file("lua/camera_image_sprite_block_frame_app.lua", "frame_app.lua")
 
         # attach the print response handler so we can see stdout from Frame Lua print() statements
         # If we assigned this handler before the frameside app was running,
@@ -88,6 +88,9 @@ async def main():
             await frame.send_message(0x20, spr.pack())
 
         await asyncio.sleep(5.0)
+
+        # unhook the print handler
+        frame._user_print_response_handler = None
 
         # stop the app loop and let it clean itself up
         await frame.send_break_signal()
