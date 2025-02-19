@@ -80,6 +80,9 @@ async def main():
         # stop the photo handler and clean up resources
         rx_photo.stop()
 
+        # unhook the print handler
+        frame._user_print_response_handler = None
+
         # stop the app loop
         await frame.send_break_signal()
 
