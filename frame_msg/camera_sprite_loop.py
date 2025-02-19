@@ -110,6 +110,9 @@ async def main():
         # detach the rx data handler
         frame._user_data_response_handler = None
 
+        # unhook the print logger
+        frame._user_print_response_handler = None
+
         # stop the app loop
         await frame.send_break_signal()
 
