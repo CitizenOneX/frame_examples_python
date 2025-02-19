@@ -6,7 +6,6 @@ from frame_ble import FrameBle
 from frame_msg import TxSprite, TxImageSpriteBlock
 
 async def send_compressed_image_sprite_block(frame: FrameBle, image_path: str):
-    # TODO add check to sprite constructors, if packed size would be > 4k, throw exception indicating ISB must be used
     sprite = TxSprite.from_indexed_png_bytes(Path(image_path).read_bytes(), compress=True)
 
     isb = TxImageSpriteBlock(sprite)
