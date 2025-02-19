@@ -52,7 +52,6 @@ async def main():
         # Send the main lua application from this project to Frame that will run the app
         # to display the sprites when the messages arrive
         # We rename the file slightly when we copy it, although it isn't necessary
-        #await frame.upload_file("lua/compressed_sprite_frame_app.lua", "frame_app.lua")
         await frame.upload_file("lua/compressed_prog_sprite_frame_app.lua", "frame_app.lua")
 
         # attach the print response handler so we can see stdout from Frame Lua print() statements
