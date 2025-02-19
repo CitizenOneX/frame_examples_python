@@ -4,3 +4,4 @@ bleak
 numpy
 pillow
 lz4
+keyboard

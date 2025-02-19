@@ -3,6 +3,7 @@ from importlib.resources import files
 from PIL import Image
 import io
 import numpy as np
+import keyboard
 
 from frame_ble import FrameBle
 from frame_msg import RxPhoto, TxCaptureSettings, TxSprite, TxImageSpriteBlock
@@ -68,12 +69,18 @@ async def main():
         # compute the capture msg once
         capture_msg_bytes = TxCaptureSettings(resolution=256, quality_index=0).pack()
 
-        dithered = io.BytesIO()
+        key_pressed = False
 
-        # some autoexp
-        await asyncio.sleep(3)
+        # key press handler for stopping the loop
+        def on_key_press(event):
+            nonlocal key_pressed
+            key_pressed = True
 
-        for _ in range(10):
+        keyboard.hook(on_key_press)  # Listen for key presses
+
+        print("Camera capture/display loop starting: Press 'q' to quit")
+
+        while not key_pressed:
 
             # Request the photo capture
             await frame.send_message(0x0d, capture_msg_bytes)
@@ -91,7 +98,11 @@ async def main():
             unpacked = np.unpackbits(data_array)
 
             # extract pixel data from unpacked.tobytes() at 1bpp and create TxSprite manually
-            sprite = TxSprite(width=256, height=256, num_colors=2, palette_data=bytes([0,0,0,255,255,255]), pixel_data=unpacked.tobytes())
+            sprite = TxSprite(width=256,
+                            height=256,
+                            num_colors=2,
+                            palette_data=bytes([0,0,0,255,255,255]),
+                            pixel_data=unpacked.tobytes())
 
             # Quantize and send the image to Frame in chunks as an ImageSpriteBlock rendered progressively
             # Note that the frameside app is expecting a message of type TxImageSpriteBlock on msgCode 0x20
@@ -103,6 +114,7 @@ async def main():
             # then send all the slices
             for spr in isb.sprite_lines:
                 await frame.send_message(0x20, spr.pack())
+
 
         # stop the photo handler and clean up resources
         rx_photo.stop()
