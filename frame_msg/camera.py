@@ -24,7 +24,7 @@ async def main():
         await frame.send_break_signal()
 
         # Let the user know we're starting
-        await frame.send_lua("frame.display.text('Loading...',1,1);frame.display.show();print(1)", await_print=True)
+        await frame.send_lua("frame.display.text('Loading...',1,1);frame.display.show();print(0)", await_print=True)
 
         # debug only: check our current battery level and memory usage (which varies between 16kb and 31kb or so even after the VM init)
         print(f"Battery Level/Memory used: {await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)}")
@@ -40,17 +40,17 @@ async def main():
 
         # attach the print response handler so we can see stdout from Frame Lua print() statements
         # If we assigned this handler before the frameside app was running,
-        # any await_print=True commands will echo the acknowledgement byte (e.g. "1"), but if we assign
+        # any await_print=True commands will echo the acknowledgement byte (e.g. "0" or "1"), but if we assign
         # the handler now we'll see any lua exceptions (or stdout print statements)
         frame._user_print_response_handler = print
 
         # "require" the main lua file to run it
-        # Note: we can't await_print here because the require() doesn't return - it has a main loop
-        await frame.send_lua("require('frame_app')", await_print=False)
-
-        # give Frame a moment to start the frameside app,
-        # based on how much work the app does before it's ready to process incoming data
-        await asyncio.sleep(0.5)
+        # Note: This require() doesn't return - frame_app.lua has a main loop,
+        # so we don't put a 'print(0)' after the require() statement,
+        # however if our main loop prints something (even a byte) once it has started up,
+        # then the await_print can be used to determine that the frameside app is ready
+        # rather than waiting for an app-dependent amount of time
+        await frame.send_lua("require('frame_app')", await_print=True)
 
         # Now that the Frameside app has started there is no need to send snippets of Lua
         # code directly (in fact, we would need to send a break_signal if we wanted to because
@@ -64,11 +64,12 @@ async def main():
         frame._user_data_response_handler = rx_photo.handle_data
 
         # give the frame some time for the autoexposure loop to run (50 times; every 0.1s)
+        print("Letting autoexposure loop run for 5 seconds to settle")
         await asyncio.sleep(5.0)
+        print("Capturing a photo")
 
         # Request the photo capture
-        capture_settings = TxCaptureSettings(resolution=720)
-        await frame.send_message(0x0d, capture_settings.pack())
+        await frame.send_message(0x0d, TxCaptureSettings(resolution=720).pack())
 
         # get the jpeg bytes as soon as they're ready
         jpeg_bytes = await asyncio.wait_for(rx_photo.queue.get(), timeout=10.0)

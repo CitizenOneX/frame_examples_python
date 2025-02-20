@@ -24,6 +24,9 @@ end
 function app_loop()
 	clear_display()
 
+	-- tell the host program that the frameside app is ready (waiting on await_print)
+	print('Frame app is running')
+
 	while true do
         rc, err = pcall(
             function()
