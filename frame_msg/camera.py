@@ -1,98 +1,76 @@
 import asyncio
-from importlib.resources import files
 from PIL import Image
 import io
 
-from frame_ble import FrameBle
-from frame_msg import RxPhoto, TxCaptureSettings
+from frame_msg import FrameMsg, RxPhoto, TxCaptureSettings
 
 async def main():
     """
     Take a photo using the Frame camera and display it in the system viewer
     """
-    frame = FrameBle()
+    frame = FrameMsg()
     try:
         await frame.connect()
-
-        # Send a break signal to Frame in case it currently has an application loop running
-        await frame.send_break_signal()
-
-        # Send a reset signal to Frame to restart the Lua VM, initialize memory to a known state
-        await frame.send_reset_signal()
-
-        # Send a break signal to Frame in case it automatically starts a saved main.lua
-        await frame.send_break_signal()
-
-        # Let the user know we're starting
-        await frame.send_lua("frame.display.text('Loading...',1,1);frame.display.show();print(0)", await_print=True)
 
         # debug only: check our current battery level and memory usage (which varies between 16kb and 31kb or so even after the VM init)
         print(f"Battery Level/Memory used: {await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)}")
 
-        # send the std lua files to Frame that handle data accumulation and camera
-        for stdlua in ['data', 'camera']:
-            await frame.upload_file_from_string(files("frame_msg").joinpath(f"lua/{stdlua}.min.lua").read_text(), f"{stdlua}.min.lua")
+        # Let the user know we're starting
+        await frame.print_short_text('Loading...')
+
+        # send the std lua files to Frame that our app needs to handle data accumulation and camera
+        await frame.upload_stdlua_libs(lib_names=['data', 'camera'])
 
         # Send the main lua application from this project to Frame that will run the app
         # to display the text when the messages arrive
-        # We rename the file slightly when we copy it, although it isn't necessary
-        await frame.upload_file("lua/camera_frame_app.lua", "frame_app.lua")
+        await frame.upload_frame_app(local_filename="lua/camera_frame_app.lua")
 
         # attach the print response handler so we can see stdout from Frame Lua print() statements
         # If we assigned this handler before the frameside app was running,
         # any await_print=True commands will echo the acknowledgement byte (e.g. "0" or "1"), but if we assign
-        # the handler now we'll see any lua exceptions (or stdout print statements)
-        frame._user_print_response_handler = print
+        # the handler now we'll see any lua exceptions (or stdout print statements) when the app runs
+        frame.attach_print_response_handler()
 
-        # "require" the main lua file to run it
-        # Note: This require() doesn't return - frame_app.lua has a main loop,
-        # so we don't put a 'print(0)' after the require() statement,
-        # however if our main loop prints something (even a byte) once it has started up,
-        # then the await_print can be used to determine that the frameside app is ready
-        # rather than waiting for an app-dependent amount of time
-        await frame.send_lua("require('frame_app')", await_print=True)
+        # "require" the main frame_app lua file to run it, and block until it has started.
+        # It signals that it is ready by sending something on the string response channel.
+        await frame.start_frame_app()
 
-        # Now that the Frameside app has started there is no need to send snippets of Lua
+        # NOTE: Now that the Frameside app has started there is no need to send snippets of Lua
         # code directly (in fact, we would need to send a break_signal if we wanted to because
         # the main app loop on Frame is running).
         # From this point we do message-passing with first-class types and send_message() (or send_data())
 
-        rx_photo = RxPhoto()
-        await rx_photo.start()
-
         # hook up the RxPhoto receiver
-        frame._user_data_response_handler = rx_photo.handle_data
+        rx_photo = RxPhoto()
+        photo_queue = await rx_photo.attach(frame)
 
         # give the frame some time for the autoexposure loop to run (50 times; every 0.1s)
         print("Letting autoexposure loop run for 5 seconds to settle")
         await asyncio.sleep(5.0)
         print("Capturing a photo")
 
-        # Request the photo capture
+        # Request the photo by sending a TxCaptureSettings message
         await frame.send_message(0x0d, TxCaptureSettings(resolution=720).pack())
 
         # get the jpeg bytes as soon as they're ready
-        jpeg_bytes = await asyncio.wait_for(rx_photo.queue.get(), timeout=10.0)
+        jpeg_bytes = await asyncio.wait_for(photo_queue.get(), timeout=10.0)
 
         # display the image in the system viewer
         image = Image.open(io.BytesIO(jpeg_bytes))
         image.show()
 
-        # stop the photo handler and clean up resources
-        rx_photo.stop()
+        # stop the photo receiver and clean up its resources
+        rx_photo.detach(frame)
 
         # unhook the print handler
-        frame._user_print_response_handler = None
-
-        # stop the app loop
-        await frame.send_break_signal()
+        frame.detach_print_response_handler()
 
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
-        # clean disconnection
-        if frame.is_connected():
-            await frame.disconnect()
+        # clean disconnection (and stops the frameside app loop, reboots into main.lua by default)
+        # TODO consider a frame.stop_frame_app() to do some/all of that cleanup?
+        await frame.disconnect()
 
 if __name__ == "__main__":
     asyncio.run(main())
