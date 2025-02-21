@@ -5,3 +5,4 @@ numpy
 pillow
 lz4
 keyboard
+pvspeaker
