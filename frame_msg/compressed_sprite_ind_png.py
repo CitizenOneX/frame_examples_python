@@ -34,7 +34,7 @@ async def main():
         print(f"Battery Level/Memory used: {await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)}")
 
         # send the std lua files to Frame that handle data accumulation and sprite parsing
-        await frame.upload_stdlua_libs(lib_names=['data', 'sprite'])
+        await frame.upload_stdlua_libs(lib_names=['data', 'image_sprite_block'])
 
         # Send the main lua application from this project to Frame that will run the app
         await frame.upload_frame_app(local_filename="lua/compressed_prog_sprite_frame_app.lua")
@@ -65,11 +65,13 @@ async def main():
         # unhook the print handler
         frame.detach_print_response_handler()
 
+        # break out of the frame app loop and reboot Frame
+        await frame.stop_frame_app()
+
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
-        # clean disconnection (and stops the frameside app loop, reboots into main.lua by default)
-        # TODO consider a frame.stop_frame_app() to do some/all of that cleanup?
+        # clean disconnection
         await frame.disconnect()
 
 if __name__ == "__main__":

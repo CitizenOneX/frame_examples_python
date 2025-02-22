@@ -7,11 +7,13 @@ USER_SPRITE = 0x20
 -- register the message parsers so they are automatically called when matching data comes in
 data.parsers[USER_SPRITE] = sprite.parse_sprite
 
-
 -- Main app loop
 function app_loop()
 	frame.display.text('Frame App Started', 1, 1)
 	frame.display.show()
+
+	-- tell the host program that the frameside app is ready (waiting on await_print)
+	print('Frame app is running')
 
 	while true do
         rc, err = pcall(

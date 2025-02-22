@@ -46,7 +46,7 @@ async def main():
         photo_queue = await rx_photo.attach(frame)
 
         # compute the capture msg once
-        capture_msg_bytes = TxCaptureSettings(resolution=256, quality_index=0).pack()
+        capture_msg_bytes = TxCaptureSettings(resolution=256, quality_index=0, pan=-40).pack()
 
         key_pressed = False
 
@@ -101,11 +101,13 @@ async def main():
         # unhook the print handler
         frame.detach_print_response_handler()
 
+        # break out of the frame app loop and reboot Frame
+        await frame.stop_frame_app()
+
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
-        # clean disconnection (and stops the frameside app loop, reboots into main.lua by default)
-        # TODO consider a frame.stop_frame_app() to do some/all of that cleanup?
+        # clean disconnection
         await frame.disconnect()
 
 if __name__ == "__main__":
