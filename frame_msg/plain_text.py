@@ -11,7 +11,8 @@ async def main():
         await frame.connect()
 
         # debug only: check our current battery level and memory usage (which varies between 16kb and 31kb or so even after the VM init)
-        print(f"Battery Level/Memory used: {await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)}")
+        batt_mem = await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)
+        print(f"Battery Level/Memory used: {batt_mem}")
 
         # Let the user know we're starting
         await frame.print_short_text('Loading...')

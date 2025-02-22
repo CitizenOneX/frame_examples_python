@@ -35,7 +35,8 @@ async def main():
         await frame.print_short_text('Loading...')
 
         # debug only: check our current battery level and memory usage (which varies between 16kb and 31kb or so even after the VM init)
-        print(f"Battery Level/Memory used: {await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)}")
+        batt_mem = await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)
+        print(f"Battery Level/Memory used: {batt_mem}")
 
         # send the std lua files to Frame that handle data accumulation and sprite parsing
         await frame.upload_stdlua_libs(lib_names=['data', 'image_sprite_block'])
