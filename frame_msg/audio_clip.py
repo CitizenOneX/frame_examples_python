@@ -60,7 +60,7 @@ async def main():
         rx_audio.detach(frame)
 
         # unhook the print handler
-        #frame.detach_print_response_handler()
+        frame.detach_print_response_handler()
 
         # break out of the frame app loop and reboot Frame
         await frame.stop_frame_app()

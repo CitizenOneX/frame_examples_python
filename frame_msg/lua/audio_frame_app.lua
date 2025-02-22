@@ -15,9 +15,6 @@ function app_loop()
 
 	local streaming = false
 
-	-- TODO temp?
-	local bytes_sent = 0
-
 	-- tell the host program that the frameside app is ready (waiting on await_print)
 	print('Frame app is running')
 
@@ -57,8 +54,6 @@ function app_loop()
 
 					if (sent == nil) then
 						streaming = false
-					else
-						bytes_sent = bytes_sent + sent
 					end
 
 					-- 8kHz/16 bit is 16000b/s, which is 66 packets/second, or 1 every 15ms
@@ -71,8 +66,6 @@ function app_loop()
 		)
 		-- Catch an error (including the break signal) here
 		if rc == false then
-			-- TODO remove
-			print(bytes_sent)
 			-- send the error back on the stdout stream and clear the display
 			print(err)
 			frame.display.text(' ', 1, 1)
