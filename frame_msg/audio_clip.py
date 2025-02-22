@@ -20,7 +20,7 @@ async def main():
         print(f"Battery Level/Memory used: {await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)}")
 
         # send the std lua files to Frame that handle data accumulation, TxCode signalling and IMU sending
-        await frame.upload_stdlua_libs(lib_names=['data', 'code'])
+        await frame.upload_stdlua_libs(lib_names=['data', 'code', 'audio'])
 
         # Send the main lua application from this project to Frame that will run the app
         await frame.upload_frame_app(local_filename="lua/audio_frame_app.lua")
@@ -60,7 +60,7 @@ async def main():
         rx_audio.detach(frame)
 
         # unhook the print handler
-        frame.detach_print_response_handler()
+        #frame.detach_print_response_handler()
 
         # break out of the frame app loop and reboot Frame
         await frame.stop_frame_app()

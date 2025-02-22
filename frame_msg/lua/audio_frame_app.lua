@@ -1,65 +1,12 @@
 local data = require('data.min')
 local code = require('code.min')
+local audio = require('audio.min')
 
 -- Phone to Frame flags
 AUDIO_SUBS_MSG = 0x30
 
--- Frame to Phone flags
-AUDIO_DATA_FINAL_MSG = 0x06
-AUDIO_DATA_NON_FINAL_MSG = 0x05
-
 -- register the message parsers so they are automatically called when matching data comes in
 data.parsers[AUDIO_SUBS_MSG] = code.parse_code
-
--- MOVE to audio.lua
-local mtu = frame.bluetooth.max_length()
--- data buffer needs to be even for reading from microphone
-if mtu % 2 == 1 then mtu = mtu - 1 end
-
-function start(args)
-	pcall(frame.microphone.start, {sample_rate=8000, bit_depth=16})
-end
-
-function stop()
-	pcall(frame.microphone.stop)
-end
-
--- reads an MTU-sized amount of audio data and sends it to the host
--- ensure this function is called frequently enough to keep up with realtime audio
--- as the Frame buffer is ~32k
-function read_and_send_audio()
-	audio_data = frame.microphone.read(242)
-
-	-- If frame.microphone.stop() is called, a nil will be read() here
-	if audio_data == nil then
-		-- send an end-of-stream message back to the host
-		while true do
-			-- If the Bluetooth is busy, this simply tries again until it gets through
-			if (pcall(frame.bluetooth.send, string.char(AUDIO_DATA_FINAL_MSG))) then
-				break
-			end
-			frame.sleep(0.0025)
-		end
-
-		return nil
-
-	-- send the data that was read
-	elseif audio_data ~= '' then
-		while true do
-			-- If the Bluetooth is busy, this simply tries again until it gets through
-			if (pcall(frame.bluetooth.send, string.char(AUDIO_DATA_NON_FINAL_MSG) .. audio_data)) then
-				break
-			end
-			frame.sleep(0.0025)
-		end
-
-		return string.len(audio_data)
-	end
-
-	-- no data read, no data sent
-	return 0
-end
-
 
 -- Main app loop
 function app_loop()
@@ -88,12 +35,12 @@ function app_loop()
 						if data.app_data[AUDIO_SUBS_MSG].value == 1 then
 							audio_data = ''
 							streaming = true
-							start({sample_rate=8000, bit_depth=16})
+							audio.start({sample_rate=8000, bit_depth=16})
 							frame.display.text("\u{F0010}", 1, 1)
 						else
 							-- don't set streaming = false here, it will be set
 							-- when all the audio data is flushed
-							stop()
+							audio.stop()
 							frame.display.text(" ", 1, 1)
 						end
 
@@ -106,7 +53,7 @@ function app_loop()
 				-- send any pending audio data back
 				-- Streams until AUDIO_SUBS_MSG is sent from host with a value of 0
 				if streaming then
-					sent = read_and_send_audio()
+					sent = audio.read_and_send_audio()
 
 					if (sent == nil) then
 						streaming = false
