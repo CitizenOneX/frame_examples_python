@@ -33,7 +33,7 @@ function app_loop()
 							audio_data = ''
 							streaming = true
 							audio.start({sample_rate=8000, bit_depth=16})
-							frame.display.text("\u{F0010}", 1, 1)
+							frame.display.text("\u{F0010}", 300, 1)
 						else
 							-- don't set streaming = false here, it will be set
 							-- when all the audio data is flushed
@@ -57,7 +57,7 @@ function app_loop()
 					end
 
 					-- 8kHz/16 bit is 16000b/s, which is 66 packets/second, or 1 every 15ms
-					frame.sleep(0.01)
+					frame.sleep(0.005)
 				else
 					-- not streaming, sleep for longer
 					frame.sleep(0.1)
