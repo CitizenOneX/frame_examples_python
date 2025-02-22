@@ -4,6 +4,10 @@ from pathlib import Path
 from frame_msg import FrameMsg, TxSprite, TxImageSpriteBlock
 
 async def send_compressed_image_sprite_block(frame: FrameMsg, image_path: str):
+    """
+    For the specified image, create a compressed TxSprite, split that sprite into strips and send them
+    progressively to Frame as an Image Sprite Block
+    """
     sprite = TxSprite.from_indexed_png_bytes(Path(image_path).read_bytes(), compress=True)
 
     isb = TxImageSpriteBlock(sprite)
