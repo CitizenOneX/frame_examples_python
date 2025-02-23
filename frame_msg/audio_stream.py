@@ -21,8 +21,8 @@ async def main():
         batt_mem = await frame.send_lua('print(frame.battery_level() .. " / " .. collectgarbage("count"))', await_print=True)
         print(f"Battery Level/Memory used: {batt_mem}")
 
-        # send the std lua files to Frame that handle data accumulation, TxCode signalling and IMU sending
-        await frame.upload_stdlua_libs(lib_names=['data', 'code'])
+        # send the std lua files to Frame that handle data accumulation, TxCode signalling and audio
+        await frame.upload_stdlua_libs(lib_names=['data', 'code', 'audio'])
 
         # Send the main lua application from this project to Frame that will run the app
         await frame.upload_frame_app(local_filename="lua/audio_frame_app.lua")
