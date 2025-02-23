@@ -86,7 +86,7 @@ async def main():
         frame.detach_print_response_handler()
 
         # break out of the frame app loop and reboot Frame
-        await frame.stop_frame_app(reset=True)
+        await frame.stop_frame_app()
 
     except Exception as e:
         print(f"An error occurred: {e}")
