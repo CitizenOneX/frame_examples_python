@@ -30,6 +30,7 @@ function app_loop()
 	frame.display.show()
 
 	local streaming = false
+	local last_auto_exp_time = 0
 
 	-- tell the host program that the frameside app is ready (waiting on await_print)
 	print('Frame app is running')
@@ -91,6 +92,16 @@ function app_loop()
 					-- not streaming, sleep for longer
 					frame.sleep(0.1)
 				end
+
+				-- run the autoexposure loop every 100ms
+				if camera.is_auto_exp then
+					local t = frame.time.utc()
+					if (t - last_auto_exp_time) > 0.1 then
+						camera.run_auto_exposure()
+						last_auto_exp_time = t
+					end
+				end
+
 			end
 		)
 		-- Catch an error (including the break signal) here

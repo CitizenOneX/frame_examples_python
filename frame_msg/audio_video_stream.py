@@ -1,7 +1,9 @@
 import asyncio
-import struct
+import io
+from PIL import Image
 
-from frame_msg import FrameMsg, RxAudio, TxCode
+from frame_msg import FrameMsg, RxAudio, RxPhoto, TxCode, TxCaptureSettings
+import time
 
 async def main():
     """
@@ -33,6 +35,10 @@ async def main():
         # It signals that it is ready by sending something on the string response channel.
         await frame.start_frame_app()
 
+        # hook up the RxPhoto receiver
+        rx_photo = RxPhoto()
+        photo_queue = await rx_photo.attach(frame)
+
         # hook up the RxAudio receiver
         rx_audio = RxAudio(streaming=True)
         audio_queue = await rx_audio.attach(frame)
@@ -41,6 +47,11 @@ async def main():
         await frame.send_message(0x30, TxCode(value=1).pack())
 
         print('Starting streaming: Ctrl-C to cancel')
+
+        # compute the capture msg once
+        capture_msg_bytes = TxCaptureSettings(resolution=512, quality_index=0, pan=-40).pack()
+
+        start_time = time.time()
 
         while True:
             try:
@@ -52,7 +63,18 @@ async def main():
                     break
 
                 # TODO send/save audio samples
-                # TODO periodically request a photo
+
+                # Check if it's been 5 seconds since the last photo request
+                current_time = time.time()
+                if current_time - start_time >= 5:
+                    await frame.send_message(0x0d, capture_msg_bytes)
+                    start_time = current_time
+                    jpeg_bytes = await asyncio.wait_for(photo_queue.get(), timeout=10.0)
+                    # TODO send/save photo
+                    # for the moment display the image in the system viewer
+                    image = Image.open(io.BytesIO(jpeg_bytes))
+                    image.show()
+
 
             except asyncio.CancelledError:
                 print("Received interrupt, shutting down...")
@@ -66,11 +88,14 @@ async def main():
         # stop the audio stream listener and clean up its resources
         rx_audio.detach(frame)
 
+        # stop the photo listener and clean up its resources
+        rx_photo.detach(frame)
+
         # unhook the print handler
         frame.detach_print_response_handler()
 
         # break out of the frame app loop and reboot Frame
-        await frame.stop_frame_app(reset=True)
+        await frame.stop_frame_app()
 
     except Exception as e:
         print(f"An error occurred: {e}")
