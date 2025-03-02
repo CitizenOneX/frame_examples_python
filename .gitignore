@@ -19,3 +19,4 @@ wheels/
 .installed.cfg
 *.egg
 .venv/
+**/.DS_Store
