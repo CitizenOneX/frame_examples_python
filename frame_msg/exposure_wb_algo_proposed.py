@@ -79,6 +79,11 @@ def camera_auto_exposure_algo(
     matrix_average = (matrix_r + matrix_g + matrix_b) / 3.0
     center_weighted_average = (spot_average + spot_average + matrix_average) / 3.0
 
+    # Prevent division by zero by setting a small minimum value
+    spot_average = max(spot_average, 0.001)
+    matrix_average = max(matrix_average, 0.001)
+    center_weighted_average = max(center_weighted_average, 0.001)
+
     # Auto exposure based on metering mode
     if metering == "SPOT":
         error = exposure_speed * ((target_exposure / spot_average) - 1) + 1
@@ -86,11 +91,6 @@ def camera_auto_exposure_algo(
         error = exposure_speed * ((target_exposure / center_weighted_average) - 1) + 1
     else:  # AVERAGE
         error = exposure_speed * ((target_exposure / matrix_average) - 1) + 1
-
-    # Prevent division by zero by setting a small minimum value
-    spot_average = max(spot_average, 0.001)
-    matrix_average = max(matrix_average, 0.001)
-    center_weighted_average = max(center_weighted_average, 0.001)
 
     # Get current settings from last state
     last_shutter = last_state["shutter"]
