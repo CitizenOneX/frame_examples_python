@@ -46,7 +46,7 @@ async def main():
         photo_queue = await rx_photo.attach(frame)
 
         # take the default manual exposure settings
-        tx_manual_exp = TxManualExpSettings(manual_shutter=10000)
+        tx_manual_exp = TxManualExpSettings()
 
         # send the manual exposure settings to Frame before taking the photo
         await frame.send_message(0x0c, tx_manual_exp.pack())
