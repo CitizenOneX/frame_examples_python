@@ -7,6 +7,7 @@ from frame_msg import FrameMsg, RxPhoto, TxAutoExpSettings, TxCaptureSettings, T
 async def main():
     """
     Run the autoexposure algorithm on Frame repeatedly and print the changing values to the console
+    along with a photo taken at each step.
     """
     frame = FrameMsg()
     try:
@@ -49,17 +50,22 @@ async def main():
         rx_autoexp = RxAutoExpResult()
         autoexp_queue = await rx_autoexp.attach(frame)
 
-        tx_auto_exp = TxAutoExpSettings(metering_index=2,
-                                        exposure=0.18,
-                                        exposure_speed=0.5,
-                                        shutter_limit=4096,
-                                        analog_gain_limit=16,
-                                        white_balance_speed=0.5,
-                                        )
+        # custom auto exposure settings can be set here in the constructor
+        tx_auto_exp = TxAutoExpSettings()
+
         # send the auto exposure parameters to Frame before iterating over the loop
         await frame.send_message(0x0e, tx_auto_exp.pack())
 
-        for i in range(15):
+        for i in range(5):
+            # send the code to trigger the single step of the auto exposure algorithm
+            await frame.send_message(0x0f, TxCode().pack())
+
+            result = await asyncio.wait_for(autoexp_queue.get(), timeout=10.0)
+            print(f"Iteration {i+1}: {result}")
+
+            # NOTE: it takes up to 200ms for exposure settings to take effect
+            await asyncio.sleep(0.2)
+
             # Request the photo by sending a TxCaptureSettings message
             await frame.send_message(0x0d, TxCaptureSettings(resolution=720).pack())
 
@@ -69,12 +75,6 @@ async def main():
             # display the image in the system viewer
             image = Image.open(io.BytesIO(jpeg_bytes))
             image.show()
-
-            # send the code to trigger the single step of the auto exposure algorithm
-            await frame.send_message(0x0f, TxCode().pack())
-
-            result = await asyncio.wait_for(autoexp_queue.get(), timeout=10.0)
-            print(f"Iteration {i+1}: {result}")
 
         # stop the photo receiver and clean up its resources
         rx_photo.detach(frame)
