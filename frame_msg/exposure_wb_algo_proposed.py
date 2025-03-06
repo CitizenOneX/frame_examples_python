@@ -292,6 +292,10 @@ async def main():
 
             algo_result = camera_auto_exposure_algo(metering_data=metering_data,
                                                     last_state=last_state,
+                                                    # can emulate previous algorithm
+                                                    # shutter_limit=1600,
+                                                    # analog_gain_limit=60,
+                                                    # rgb_gain_limit=1023,
                                                     )
 
             print('Algo Result: ' + str(algo_result))
