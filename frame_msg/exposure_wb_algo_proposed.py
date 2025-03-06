@@ -147,10 +147,11 @@ def camera_auto_exposure_algo(
 
     # Auto white balance based on full scene matrix
     # Find the channel with the highest normalized value
-    normalized_r = 256.0 * matrix_r / last_red_gain
-    normalized_g = 256.0 * matrix_g / last_green_gain
-    normalized_b = 256.0 * matrix_b / last_blue_gain
-    max_rgb = max(normalized_r, normalized_g, normalized_b)
+    normalized_r = matrix_r / last_red_gain
+    normalized_g = matrix_g / last_green_gain
+    normalized_b = matrix_b / last_blue_gain
+    # scale normalized RGB values to the gain scale
+    max_rgb = 256.0 * max(normalized_r, normalized_g, normalized_b)
     print(f'normalized_r: {normalized_r} / normalized_g: {normalized_g} / normalized_b: {normalized_b} / max_rgb: {max_rgb}')
 
     # Calculate the gains needed to match all channels to max_rgb
