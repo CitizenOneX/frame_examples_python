@@ -67,7 +67,7 @@ def camera_auto_exposure_algo(
     if not (0.0 <= white_balance_speed <= 1.0):
         raise ValueError("white_balance_speed must be between 0 and 1")
 
-    # Use current brightness from FPGA
+    # Use current brightness from FPGA, normalized 0..1
     spot_r = metering_data['spot_r'] / 255.0
     spot_g = metering_data['spot_g'] / 255.0
     spot_b = metering_data['spot_b'] / 255.0
@@ -147,15 +147,18 @@ def camera_auto_exposure_algo(
 
     # Auto white balance based on full scene matrix
     # Find the channel with the highest normalized value
-    normalized_r = matrix_r / last_red_gain
-    normalized_g = matrix_g / last_green_gain
-    normalized_b = matrix_b / last_blue_gain
+    normalized_r = 256.0 * matrix_r / last_red_gain
+    normalized_g = 256.0 * matrix_g / last_green_gain
+    normalized_b = 256.0 * matrix_b / last_blue_gain
     max_rgb = max(normalized_r, normalized_g, normalized_b)
+    print(f'normalized_r: {normalized_r} / normalized_g: {normalized_g} / normalized_b: {normalized_b} / max_rgb: {max_rgb}')
 
     # Calculate the gains needed to match all channels to max_rgb
     red_gain = max_rgb / matrix_r * last_red_gain
     green_gain = max_rgb / matrix_g * last_green_gain
     blue_gain = max_rgb / matrix_b * last_blue_gain
+    print(f'target red_gain: {red_gain} / green_gain: {green_gain} / blue_gain: {blue_gain}')
+    print(f'last_red_gain: {last_red_gain} / last_green_gain: {last_green_gain} / last_blue_gain: {last_blue_gain}')
 
     # Calculate scene brightness
     scene_brightness = brightness_constant * (matrix_average / (last_shutter * last_analog_gain))
@@ -174,14 +177,17 @@ def camera_auto_exposure_algo(
     last_red_gain = blending_factor * white_balance_speed * (red_gain - last_red_gain) + last_red_gain
     last_green_gain = blending_factor * white_balance_speed * (green_gain - last_green_gain) + last_green_gain
     last_blue_gain = blending_factor * white_balance_speed * (blue_gain - last_blue_gain) + last_blue_gain
+    print(f'last_red_gain: {last_red_gain} / last_green_gain: {last_green_gain} / last_blue_gain: {last_blue_gain}')
 
     # Scale per-channel gains so the largest channel is at most rgb_gain_limit
     max_rgb_gain = max(last_red_gain, last_green_gain, last_blue_gain)
     if (max_rgb_gain > rgb_gain_limit):
+        print('Scaling gains')
         scale_factor = rgb_gain_limit / max_rgb_gain
         last_red_gain *= scale_factor
         last_green_gain *= scale_factor
         last_blue_gain *= scale_factor
+        print(f'scaled last_red_gain: {last_red_gain} / last_green_gain: {last_green_gain} / last_blue_gain: {last_blue_gain}')
 
     # Camera registers for white balance will be updated after function returns
 
@@ -269,7 +275,7 @@ async def main():
 
         # initialize starting exposure/white balance parameters
         last_state = {
-            "shutter": 4096.0,
+            "shutter": 1600.0,
             "analog_gain": 1.0,
             "red_gain": 121.6,
             "green_gain": 64.0,
@@ -304,15 +310,15 @@ async def main():
             # NOTE: it takes up to 200ms for manual camera settings to take effect!
             await asyncio.sleep(0.2)
 
-            # Request the photo by sending a TxCaptureSettings message
-            await frame.send_message(0x0d, TxCaptureSettings(resolution=720).pack())
+        # Request the photo by sending a TxCaptureSettings message
+        await frame.send_message(0x0d, TxCaptureSettings(resolution=720).pack())
 
-            # get the jpeg bytes as soon as they're ready
-            jpeg_bytes = await asyncio.wait_for(photo_queue.get(), timeout=10.0)
+        # get the jpeg bytes as soon as they're ready
+        jpeg_bytes = await asyncio.wait_for(photo_queue.get(), timeout=10.0)
 
-            # display the image in the system viewer
-            image = Image.open(io.BytesIO(jpeg_bytes))
-            image.show()
+        # display the image in the system viewer
+        image = Image.open(io.BytesIO(jpeg_bytes))
+        image.show()
 
         # stop the photo receiver and clean up its resources
         rx_photo.detach(frame)
