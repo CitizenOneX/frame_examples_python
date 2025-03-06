@@ -14,7 +14,7 @@ def camera_auto_exposure_algo(
     metering="AVERAGE",
     target_exposure=0.18,
     exposure_speed=0.50,
-    shutter_limit=8192.0,
+    shutter_limit=3072.0,
     analog_gain_limit=16.0,
     rgb_gain_limit=141.0,
 

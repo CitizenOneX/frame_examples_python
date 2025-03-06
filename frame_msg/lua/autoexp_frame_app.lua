@@ -1,7 +1,6 @@
--- TODO switch back to minified
-local data = require('data')
-local camera = require('camera')
-local code = require('code')
+local data = require('data.min')
+local camera = require('camera.min')
+local code = require('code.min')
 
 -- Phone to Frame flags
 CAPTURE_SETTINGS_MSG = 0x0d

@@ -21,7 +21,7 @@ async def main():
         await frame.print_short_text('Loading...')
 
         # send the std lua files to Frame that our app needs to handle data accumulation and camera
-        await frame.upload_stdlua_libs(lib_names=['data', 'camera', 'code'], minified=False)
+        await frame.upload_stdlua_libs(lib_names=['data', 'camera', 'code'])
 
         # Send the main lua application from this project to Frame that will run the app
         # to take a photo and send it back when the TxCaptureSettings messages arrive
