@@ -139,6 +139,7 @@ def camera_auto_exposure_algo(
     last_red_gain = max(last_red_gain, 0.001)
     last_green_gain = max(last_green_gain, 0.001)
     last_blue_gain = max(last_blue_gain, 0.001)
+    print(f'last_red_gain: {last_red_gain} / last_green_gain: {last_green_gain} / last_blue_gain: {last_blue_gain}')
 
     # Auto white balance based on full scene matrix
     # Find the channel with the highest normalized value
@@ -146,24 +147,28 @@ def camera_auto_exposure_algo(
     normalized_g = matrix_g / last_green_gain
     normalized_b = matrix_b / last_blue_gain
     max_rgb = max(normalized_r, normalized_g, normalized_b)
+    print(f'normalized_r: {normalized_r} / normalized_g: {normalized_g} / normalized_b: {normalized_b} / max_rgb: {max_rgb}')
 
     # Calculate the gains needed to match all channels to max_rgb
     red_gain = max_rgb / matrix_r * last_red_gain
     green_gain = max_rgb / matrix_g * last_green_gain
     blue_gain = max_rgb / matrix_b * last_blue_gain
+    print(f'red_gain: {red_gain} / green_gain: {green_gain} / blue_gain: {blue_gain}')
 
     # Calculate scene brightness
     scene_brightness = brightness_constant * matrix_average / (last_shutter * last_analog_gain)
+    print('Scene brightness: ' + str(scene_brightness))
 
     # Calculate blending factor based on scene brightness
     blending_factor = (scene_brightness - white_balance_min_activation) / (
         white_balance_max_activation - white_balance_min_activation
     )
+    print('Blending factor: ' + str(blending_factor))
 
     # Limit gain values to prevent overflow
-    red_gain = min(red_gain, 1023.0)
-    green_gain = min(green_gain, 1023.0)
-    blue_gain = min(blue_gain, 1023.0)
+    red_gain = min(red_gain, 1023.0/256.0)
+    green_gain = min(green_gain, 1023.0/256.0)
+    blue_gain = min(blue_gain, 1023.0/256.0)
 
     # Limit blending factor to valid range
     blending_factor = max(0.0, min(1.0, blending_factor))
@@ -172,6 +177,7 @@ def camera_auto_exposure_algo(
     last_red_gain = blending_factor * white_balance_speed * (red_gain - last_red_gain) + last_red_gain
     last_green_gain = blending_factor * white_balance_speed * (green_gain - last_green_gain) + last_green_gain
     last_blue_gain = blending_factor * white_balance_speed * (blue_gain - last_blue_gain) + last_blue_gain
+    print(f'last_red_gain: {last_red_gain} / last_green_gain: {last_green_gain} / last_blue_gain: {last_blue_gain}')
 
     # Convert to integer values for hardware
     red_gain_uint16 = int(last_red_gain * 256.0)
@@ -182,6 +188,7 @@ def camera_auto_exposure_algo(
     red_gain_uint16 = min(red_gain_uint16, 1023)
     green_gain_uint16 = min(green_gain_uint16, 1023)
     blue_gain_uint16 = min(blue_gain_uint16, 1023)
+    print(f'red_gain_uint16: {red_gain_uint16} / green_gain_uint16: {green_gain_uint16} / blue_gain_uint16: {blue_gain_uint16}')
 
     # Camera registers for white balance will be updated after function returns
 
@@ -312,15 +319,15 @@ async def main():
             # NOTE: it takes up to 200ms for manual camera settings to take effect!
             await asyncio.sleep(0.2)
 
-            # Request the photo by sending a TxCaptureSettings message
-            await frame.send_message(0x0d, TxCaptureSettings(resolution=720).pack())
+        # Request the photo by sending a TxCaptureSettings message
+        await frame.send_message(0x0d, TxCaptureSettings(resolution=720).pack())
 
-            # get the jpeg bytes as soon as they're ready
-            jpeg_bytes = await asyncio.wait_for(photo_queue.get(), timeout=10.0)
+        # get the jpeg bytes as soon as they're ready
+        jpeg_bytes = await asyncio.wait_for(photo_queue.get(), timeout=10.0)
 
-            # display the image in the system viewer
-            image = Image.open(io.BytesIO(jpeg_bytes))
-            image.show()
+        # display the image in the system viewer
+        image = Image.open(io.BytesIO(jpeg_bytes))
+        image.show()
 
         # stop the photo receiver and clean up its resources
         rx_photo.detach(frame)
