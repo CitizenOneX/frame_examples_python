@@ -1,5 +1,5 @@
 frame-ble==1.1.0
-frame-msg==5.0.0
+frame-msg==5.1.0
 bleak
 numpy
 pillow
