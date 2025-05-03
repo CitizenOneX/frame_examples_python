@@ -35,6 +35,7 @@ function app_loop()
 							audio.start({sample_rate=8000, bit_depth=16})
 							frame.display.text("\u{F0010}", 300, 1)
 						else
+							-- 'stop' message
 							-- don't set streaming = false here, it will be set
 							-- when all the audio data is flushed
 							audio.stop()
@@ -50,13 +51,20 @@ function app_loop()
 				-- send any pending audio data back
 				-- Streams until AUDIO_SUBS_MSG is sent from host with a value of 0
 				if streaming then
-					sent = audio.read_and_send_audio()
-
-					if (sent == nil) then
+					-- read_and_send_audio() sends one MTU worth of samples
+					-- so loop up to 10 times until we have caught up or the stream has stopped
+					local sent = audio.read_and_send_audio()
+					for i = 1, 10 do
+						if sent == nil or sent == 0 then
+							break
+						end
+						sent = audio.read_and_send_audio()
+					end
+					if sent == nil then
 						streaming = false
 					end
 
-					-- 8kHz/16 bit is 16000b/s, which is 66 packets/second, or 1 every 15ms
+					-- 8kHz/16 bit is 16000b/s, which is ~66 packets/second, or 1 every 15ms
 					frame.sleep(0.005)
 				else
 					-- not streaming, sleep for longer

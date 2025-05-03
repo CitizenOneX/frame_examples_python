@@ -10,6 +10,14 @@ async def main():
     """
     frame = FrameMsg()
     speaker = None
+    stop_requested = False
+
+    async def stop_audio():
+        nonlocal stop_requested
+        if not stop_requested:
+            print("\nStopping audio...")
+            await frame.send_message(0x30, TxCode(value=0).pack())
+            stop_requested = True
 
     try:
         await frame.connect()
@@ -38,42 +46,56 @@ async def main():
         speaker = PvSpeaker(
             sample_rate=8000,
             bits_per_sample=16,
-            buffer_size_secs=1,
+            buffer_size_secs=5,
             device_index=-1)
 
         speaker.start()
 
-        # hook up the RxAudio receiver
+        # hook up the RxAudio receiver in streaming mode rather than whole clip mode
         rx_audio = RxAudio(streaming=True)
         audio_queue = await rx_audio.attach(frame)
 
         # Subscribe for streaming audio
         await frame.send_message(0x30, TxCode(value=1).pack())
 
-        # Schedule the unsubscribe message to be sent 5 seconds from now
-        asyncio.get_event_loop().call_later(
-            5, lambda: asyncio.create_task(frame.send_message(0x30, TxCode(value=0).pack()))
-        )
+        print("Press Ctrl-C to stop audio...")
 
         while True:
-            # get the audio samples as soon as they arrive
-            audio_samples = await asyncio.wait_for(audio_queue.get(), timeout=10.0)
+            try:
+                # Try to get audio samples without blocking
+                audio_samples = audio_queue.get_nowait()
 
-            # after streaming is canceled, a None will be put in the queue
-            if audio_samples is None:
-                break
+                # after streaming is canceled, a None will be put in the queue
+                if audio_samples is None:
+                    break
 
-            # Convert bytes to list of int16 values for PvSpeaker
-            # Unpack every 2 bytes as a signed 16-bit integer
-            int16_samples = list(struct.unpack(f'<{len(audio_samples)//2}h', audio_samples))
+                # Convert bytes to list of int16 values for PvSpeaker
+                # Unpack every 2 bytes as a signed 16-bit integer
+                int16_samples = list(struct.unpack(f'<{len(audio_samples)//2}h', audio_samples))
 
-            samples_remaining = int16_samples
-            while len(samples_remaining) > 0:
-                bytes_written = speaker.write(samples_remaining)
-                if bytes_written == 0: # buffer is full
-                    await asyncio.sleep(0.001) # short sleep to prevent CPU spinning
-                    continue
-                samples_remaining = samples_remaining[bytes_written:]
+                samples_remaining = int16_samples
+                while len(samples_remaining) > 0:
+                    bytes_written = speaker.write(samples_remaining)
+                    if bytes_written == 0: # buffer is full
+                        try:
+                            await asyncio.sleep(0.001) # short sleep to prevent CPU spinning
+                        except KeyboardInterrupt:
+                            await stop_audio()
+                            continue
+                        continue
+                    samples_remaining = samples_remaining[bytes_written:]
+            except asyncio.QueueEmpty:
+                # No samples available, yield control to other tasks
+                try:
+                    await asyncio.sleep(0.001)
+                except asyncio.exceptions.CancelledError:
+                    # ctrl-c came while in the sleep
+                    await stop_audio()
+                continue
+            except KeyboardInterrupt:
+                # ctrl-c came at another time
+                await stop_audio()
+                continue
 
         # stop the audio stream listener and clean up its resources
         rx_audio.detach(frame)

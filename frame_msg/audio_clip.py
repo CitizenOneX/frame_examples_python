@@ -33,17 +33,16 @@ async def main():
         # It signals that it is ready by sending something on the string response channel.
         await frame.start_frame_app()
 
-        # hook up the RxAudio receiver
+        # hook up the RxAudio receiver in single whole clip mode
         rx_audio = RxAudio()
         audio_queue = await rx_audio.attach(frame)
 
         # Tell Frame to start streaming audio
         await frame.send_message(0x30, TxCode(value=1).pack())
 
-        # Schedule the stop-streaming message to be sent 5 seconds from now
-        asyncio.get_event_loop().call_later(
-            5, lambda: asyncio.create_task(frame.send_message(0x30, TxCode(value=0).pack()))
-        )
+        # Send the stop-streaming message after 5 seconds of recording
+        await asyncio.sleep(5)
+        await frame.send_message(0x30, TxCode(value=0).pack())
 
         # get the audio samples from RxAudio as a single block
         audio_samples = await asyncio.wait_for(audio_queue.get(), timeout=10.0)
