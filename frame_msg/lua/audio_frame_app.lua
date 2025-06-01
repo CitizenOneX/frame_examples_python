@@ -32,7 +32,7 @@ function app_loop()
 						if data.app_data[AUDIO_SUBS_MSG].value == 1 then
 							audio_data = ''
 							streaming = true
-							audio.start({sample_rate=8000, bit_depth=16})
+							audio.start()
 							frame.display.text("\u{F0010}", 300, 1)
 						else
 							-- 'stop' message
@@ -64,7 +64,7 @@ function app_loop()
 						streaming = false
 					end
 
-					-- 8kHz/16 bit is 16000b/s, which is ~66 packets/second, or 1 every 15ms
+					-- 8kHz/8 bit is 8000b/s, which is ~33 packets/second, or 1 every 30ms
 					frame.sleep(0.005)
 				else
 					-- not streaming, sleep for longer

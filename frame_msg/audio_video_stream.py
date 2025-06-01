@@ -1,16 +1,25 @@
 import asyncio
 import io
 from PIL import Image
+from pvspeaker import PvSpeaker
 
 from frame_msg import FrameMsg, RxAudio, RxPhoto, TxCode, TxCaptureSettings
 import time
 
 async def main():
     """
-    Subscribe to an Audio stream from Frame and take periodic photos
+    Subscribe to an Audio stream from Frame and play to the default output device using pvspeaker, and take periodic photos
     """
     frame = FrameMsg()
     speaker = None
+    stop_requested = False
+
+    async def stop_streaming():
+        nonlocal stop_requested
+        if not stop_requested:
+            print("\nStopping streaming...")
+            await frame.send_message(0x30, TxCode(value=0).pack())
+            stop_requested = True
 
     try:
         await frame.connect()
@@ -43,6 +52,15 @@ async def main():
         rx_audio = RxAudio(streaming=True)
         audio_queue = await rx_audio.attach(frame)
 
+        # set up and start the audio output player
+        speaker = PvSpeaker(
+            sample_rate=8000,
+            bits_per_sample=8,
+            buffer_size_secs=5,
+            device_index=-1)
+
+        speaker.start()
+
         # Subscribe for streaming audio
         await frame.send_message(0x30, TxCode(value=1).pack())
 
@@ -55,14 +73,32 @@ async def main():
 
         while True:
             try:
-                # get the audio samples as soon as they arrive
-                audio_samples = await asyncio.wait_for(audio_queue.get(), timeout=10.0)
+                # Try to get audio samples without blocking
+                audio_samples = audio_queue.get_nowait()
 
                 # after streaming is canceled, a None will be put in the queue
                 if audio_samples is None:
                     break
 
-                # TODO send/save audio samples
+                # since bits_per_sample == 8:
+                # reinterpret the bytes as signed 8-bit integers then shift to the uint8 range 0-255
+                pcm_data = bytearray(audio_samples)
+                for i in range(len(pcm_data)):
+                    # Convert signed 8-bit (-128 to 127) to unsigned 8-bit (0 to 255)
+                    pcm_data[i] = (pcm_data[i] if pcm_data[i] < 128 else pcm_data[i] - 256) + 128
+
+                # Pass the audio samples to PvSpeaker
+                samples_remaining = pcm_data
+                while len(samples_remaining) > 0:
+                    bytes_written = speaker.write(samples_remaining)
+                    if bytes_written == 0: # buffer is full
+                        try:
+                            await asyncio.sleep(0.001) # short sleep to prevent CPU spinning
+                        except KeyboardInterrupt:
+                            await stop_streaming()
+                            continue
+                        continue
+                    samples_remaining = samples_remaining[bytes_written:]
 
                 # Check if it's been 5 seconds since the last photo request
                 current_time = time.time()
@@ -76,14 +112,25 @@ async def main():
                     image.show()
 
 
-            except asyncio.CancelledError:
-                print("Received interrupt, shutting down...")
-                await frame.send_message(0x30, TxCode(value=0).pack())
+            except asyncio.QueueEmpty:
+                # No samples available, yield control to other tasks
+                try:
+                    await asyncio.sleep(0.001)
+                except asyncio.exceptions.CancelledError:
+                    # ctrl-c came while in the sleep
+                    await stop_streaming()
+                continue
+            except KeyboardInterrupt:
+                # ctrl-c came at another time
+                await stop_streaming()
+                continue
+            except Exception as e:
+                print(f"Error processing stream: {e}")
                 break
 
-            except Exception as e:
-                print(f"Error processing audio: {e}")
-                break
+        # stop the audio output player
+        speaker.flush()
+        speaker.stop()
 
         # stop the audio stream listener and clean up its resources
         rx_audio.detach(frame)

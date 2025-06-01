@@ -1,5 +1,4 @@
 import asyncio
-import struct
 
 from frame_msg import FrameMsg, RxAudio, TxCode
 from pvspeaker import PvSpeaker
@@ -45,7 +44,7 @@ async def main():
         # set up and start the audio output player
         speaker = PvSpeaker(
             sample_rate=8000,
-            bits_per_sample=16,
+            bits_per_sample=8,
             buffer_size_secs=5,
             device_index=-1)
 
@@ -69,11 +68,15 @@ async def main():
                 if audio_samples is None:
                     break
 
-                # Convert bytes to list of int16 values for PvSpeaker
-                # Unpack every 2 bytes as a signed 16-bit integer
-                int16_samples = list(struct.unpack(f'<{len(audio_samples)//2}h', audio_samples))
+                # since bits_per_sample == 8:
+                # reinterpret the bytes as signed 8-bit integers then shift to the uint8 range 0-255
+                pcm_data = bytearray(audio_samples)
+                for i in range(len(pcm_data)):
+                    # Convert signed 8-bit (-128 to 127) to unsigned 8-bit (0 to 255)
+                    pcm_data[i] = (pcm_data[i] if pcm_data[i] < 128 else pcm_data[i] - 256) + 128
 
-                samples_remaining = int16_samples
+                # Pass the audio samples to PvSpeaker
+                samples_remaining = pcm_data
                 while len(samples_remaining) > 0:
                     bytes_written = speaker.write(samples_remaining)
                     if bytes_written == 0: # buffer is full
