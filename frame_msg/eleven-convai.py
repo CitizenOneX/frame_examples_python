@@ -11,6 +11,7 @@ from elevenlabs.conversational_ai.conversation import Conversation, AudioInterfa
 from typing import Callable
 import threading
 import queue
+import numpy as np
 
 class FrameAudioInterface(AudioInterface):
     """Custom AudioInterface implementation for Frame device."""
@@ -86,20 +87,32 @@ class FrameAudioInterface(AudioInterface):
             # Signal end of audio stream
             self.thread_audio_queue.put(None)
     
+    def _upsample_audio(self, audio_8khz, target_rate=16000, source_rate=8000):
+        """Upsample audio from 8kHz to 16kHz using simple interpolation."""
+        ratio = target_rate // source_rate
+        upsampled = np.repeat(audio_8khz, ratio)
+        return upsampled
+    
+    def _downsample_audio(self, audio_16khz, target_rate=8000, source_rate=16000):
+        """Downsample audio from 16kHz to 8kHz by taking every other sample."""
+        ratio = source_rate // target_rate
+        downsampled = audio_16khz[::ratio]
+        return downsampled
+    
     def start(self, input_callback: Callable[[bytes], None]):
         """Start the audio interface for Frame."""
         print("Starting Frame audio interface...")
         self.input_callback = input_callback
         
-        # Set up audio output player
+        # Set up audio output player - Frame expects 8kHz, 8-bit
         self.speaker = PvSpeaker(
-            sample_rate=16000,  # ElevenLabs expects 16kHz
-            bits_per_sample=16,  # ElevenLabs expects 16-bit
+            sample_rate=8000,   # Frame operates at 8kHz
+            bits_per_sample=8,  # Frame expects 8-bit
             buffer_size_secs=5,
             device_index=-1
         )
         self.speaker.start()
-        print("PvSpeaker started")
+        print("PvSpeaker started (8kHz, 8-bit)")
         
         # Start threads
         self.should_stop.clear()
@@ -174,24 +187,22 @@ class FrameAudioInterface(AudioInterface):
                 
                 # Convert Frame's 8-bit audio to 16-bit for ElevenLabs
                 try:
-                    pcm_16bit = bytearray(len(audio_samples) * 2)
-                    for i, sample in enumerate(audio_samples):
-                        # Convert unsigned 8-bit to signed 16-bit
-                        if isinstance(sample, int):
-                            # Handle signed 8-bit conversion
-                            if sample > 127:
-                                sample = sample - 256
-                            sample_16bit = sample * 256
-                        else:
-                            sample_16bit = int(sample) * 256
-                        
-                        # Pack as little-endian 16-bit
-                        pcm_16bit[i*2] = sample_16bit & 0xFF
-                        pcm_16bit[i*2 + 1] = (sample_16bit >> 8) & 0xFF
+                    # Convert bytes to numpy array of signed 8-bit integers
+                    audio_8bit = np.frombuffer(audio_samples, dtype=np.int8)
+                    
+                    # Convert to 16-bit (signed)
+                    audio_16bit = audio_8bit.astype(np.int16) * 256
+                    
+                    # Upsample from 8kHz to 16kHz
+                    audio_16khz = self._upsample_audio(audio_16bit)
+                    
+                    # Convert back to bytes
+                    pcm_16bit = audio_16khz.astype(np.int16).tobytes()
                     
                     # Send to ElevenLabs
                     if self.input_callback:
-                        self.input_callback(bytes(pcm_16bit))
+                        self.input_callback(pcm_16bit)
+                        
                 except Exception as e:
                     print(f"Error converting audio: {e}")
                     continue
@@ -213,9 +224,23 @@ class FrameAudioInterface(AudioInterface):
                 # Get audio from ElevenLabs (16-bit PCM at 16kHz)
                 audio_16bit = self.output_queue.get(timeout=0.25)
                 
-                # Write directly to PvSpeaker
                 try:
-                    self.speaker.write(audio_16bit)
+                    # Convert from 16-bit PCM to numpy array
+                    audio_16khz = np.frombuffer(audio_16bit, dtype=np.int16)
+                    
+                    # Downsample from 16kHz to 8kHz
+                    audio_8khz = self._downsample_audio(audio_16khz)
+                    
+                    # Convert from 16-bit to 8-bit unsigned (0-255 range for PvSpeaker)
+                    audio_8bit_signed = (audio_8khz / 256).astype(np.int8)
+                    audio_8bit_unsigned = (audio_8bit_signed.astype(np.int16) + 128).astype(np.uint8)
+                    
+                    # Convert to bytes
+                    audio_8bit_bytes = audio_8bit_unsigned.tobytes()
+                    
+                    # Write to speaker
+                    self.speaker.write(audio_8bit_bytes)
+                    
                 except Exception as e:
                     print(f"Error writing to speaker: {e}")
                 
